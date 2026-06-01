@@ -1499,3 +1499,21 @@ class LocalFileOnDisk(Resource):
         platform = Platform(config)
         identifier = platform.substitute(pattern, basetime=basetime, validtime=validtime)
         Resource.__init__(self, config, identifier)
+
+
+class ConstClim(Resource):
+    """Local climate file on disk."""
+
+    def __init__(self, config, pattern, basetime=None, validtime=None):
+        """Construct local climate file on disk.
+
+        Args:
+            config (tactus.ParsedConfig): Configuration
+            pattern (str): Identifier pattern
+            basetime (datetime.datetime, optional): Base time. Defaults to None.
+            validtime (datetime.datetime, optional): Valid time. Defaults to None.
+
+        """
+        platform = Platform(config)
+        identifier = platform.substitute(pattern, basetime=basetime, validtime=validtime)
+        Resource.__init__(self, config, identifier)

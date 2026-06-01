@@ -46,6 +46,16 @@ class Projection:
         self.proj = pyproj.CRS.from_string(proj4str)
         self.wgs84 = pyproj.CRS.from_string("EPSG:4326")
 
+    def geographic2cartessian(self, lon, lat):
+        return pyproj.Transformer.from_crs(
+            self.proj.wgs84, self.proj, always_xy=True
+        ).transform(lon, lat)
+
+    def cartessian2geographic(self, x, y):
+        return pyproj.Transformer.from_crs(
+            self.proj, self.wgs84, always_xy=True
+        ).transform(x, y)
+
     def check_key(self, key: str, config: dict) -> bool:
         """Check if key is in config.
 
@@ -119,3 +129,101 @@ class Projection:
             "maxlat": maxlat,
             "maxlon": maxlon,
         }
+
+
+class LambertDomain():
+    """Domain class."""
+
+    def __init__(self, name, proj, nimax, njmax, xdx, xdy, xloncen, xlatcen,
+                 ilone=0, ilate=0):
+        """Construct domain.
+
+        Args:
+            proj (Projection): Projection object
+            nimax (int): Number of grid points in x direction
+            njmax (int): Number of grid points in y direction
+            xdx (float): Grid spacing in x direction
+            xdy (float): Grid spacing in y direction
+            xloncen (float): Central longitude in projection coordinates
+            xlatcen (float): Central latitude in projection coordinates
+            ilone (int, optional): Extension zone in longitude direction. Defaults to 0.
+            ilate (int, optional): Extension zone in latitude direction. Defaults to 0.
+        """
+        self.name = name
+        self.nimax = nimax
+        self.njmax = njmax
+        self.xdx = xdx
+        self.xdy = xdy
+        self.xloncen = xloncen
+        self.xlatcen = xlatcen
+        self.proj = proj
+        self.inlone = ilone
+        self.ilate = ilate
+
+    def get_domain_extension(self) -> dict:
+        """Get domain properties.
+
+        Args:
+            domain_spec (dict): Domain specification
+
+        Returns:
+            dict: Domain properties
+        """
+
+        xloncen, xlatcen = self.proj.geographic2cartessian(self.xloncen, self.xlatcen)
+
+        x_0 = float(xloncen) - (0.5 * ((float(self.nimax) - 1.0) * self.xdx))
+        y_0 = float(xlatcen) - (0.5 * ((float(self.njmax) - 1.0) * self.xdy))
+
+        xxx = np.empty([self.nimax])
+        yyy = np.empty([self.njmax])
+        for i in range(self.nimax):
+            xxx[i] = x_0 + (float(i) * self.xdy)
+        for j in range(self.njmax):
+            yyy[j] = y_0 + (float(j) * self.xdy)
+
+        x_v, y_v = np.meshgrid(xxx, yyy)
+        lons, lats = self.proj.cartessian2geographic(x_v, y_v)
+
+        minlat = np.floor(np.min(lats)) - 1
+        minlon = np.floor(np.min(lons)) - 1
+        maxlat = np.ceil(np.max(lats)) + 1
+        maxlon = np.ceil(np.max(lons)) + 1
+
+        minlat = np.max([minlat, -90])
+        minlon = np.max([minlon, -180])
+        maxlat = np.min([maxlat, 90])
+        maxlon = np.min([maxlon, 180])
+
+        return {
+            "minlat": minlat,
+            "minlon": minlon,
+            "maxlat": maxlat,
+            "maxlon": maxlon,
+        }
+
+
+class LambertDomainFromConfig(LambertDomain):
+    """Domain class constructed from config."""
+
+    def __init__(self, config):
+        """Construct domain from config.
+
+        Args:
+            config (tactus.ParsedConfig): Configuration from which we get the domain data
+        """
+        name = config["domain.name"]
+        lon0 = config["domain.lon0"]
+        lat0 = config["domain.lat0"]
+        projstr = Projstring().get_projstring(lon0=lon0, lat0=lat0)
+        proj = Projection(projstr)
+        nimax = config["domain.nimax"]
+        njmax = config["domain.njmax"]
+        xdx = config["domain.xdx"]
+        xdy = config["domain.xdy"]
+        xlatcen = config["domain.xlatcen"]
+        xloncen = config["domain.xloncen"]
+        ilone = config["domain.ilone"]
+        ilate = config["domain.ilate"]
+        super().__init__(name, proj, nimax, njmax, xdx, xdy, xloncen, xlatcen,
+                         ilone=ilone, ilate=ilate)

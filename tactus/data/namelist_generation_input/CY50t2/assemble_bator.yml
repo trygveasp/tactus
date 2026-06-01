@@ -1,0 +1,12 @@
+bator:
+  - bator_base
+  - bator_@CSC@
+
+bator_lamflag:
+  - bator_lamflag_base
+
+bator_rgb:
+  - bator_rgb_base
+
+bator_gpssol:
+  - bator_gpssol_base
